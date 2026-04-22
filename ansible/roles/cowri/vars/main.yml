@@ -1,0 +1,2 @@
+honeypot_log_path: "/var/log/cowrie/cowrie.json"
+honeypot_type: "cowrie"

@@ -1,0 +1,144 @@
+# Tasks:
+# 1. Download dependencies
+# 2. Start Docker
+# 3. Create local file directories
+# 4. Copy local configurations for Dionaea
+# 5. Start Dioanea and attach Volumes
+# 6. Download Python Script Shipper
+# 7. Start service for python script
+
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - python3-boto3
+      - python3-docker
+    state: present # install if not exists
+    update_cache: true
+
+- name: Start and enable docker
+  ansible.builtin.service:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Create local file directory for dionaea config
+  ansible.builtin.file:
+    path: /opt/dionaea/etc/dionaea
+    state: directory # create all intermediate subdirectories if they do not already exist
+    owner: '1000'
+    group: '1000'
+    mode: '0777'
+
+- name: Create local file directory for data directory
+  ansible.builtin.file:
+    path: /opt/dionaea/var/lib/dionaea
+    state: directory # create all intermediate subdirectories if they do not already exist
+    owner: '1000'
+    group: '1000'
+    mode: '0777'
+
+- name: Create file directory for binaries
+  ansible.builtin.file:
+    path: /opt/dionaea/var/lib/dionaea/binaries
+    state: directory
+    owner: '1000'
+    group: '1000'
+    mode: '0777'
+
+- name: Create file directory for bistreams
+  ansible.builtin.file:
+    path: /opt/dionaea/var/lib/dionaea/bistreams
+    state: directory
+    owner: '1000'
+    group: '1000'
+    mode: '0777'
+
+- name: Create local file directory for log directory
+  ansible.builtin.file:
+    path: /opt/dionaea/var/log/dionaea
+    state: directory # create all intermediate subdirectories if they do not already exist
+    owner: '1000'
+    group: '1000'
+    mode: '0777' # drwxr-xr-x
+
+- name: Pull docker image for Dionaea
+  community.docker.docker_image:
+    name: dinotools/dionaea:latest
+    source: pull
+
+- name: Start temporary Dionaea container
+  community.docker.docker_container:
+    name: dionaea_temp
+    image: dinotools/dionaea:latest
+    state: started
+    command: sleep 60
+
+- name: Extract dionaea.cfg to EC2 host
+  ansible.builtin.command:
+    cmd: docker cp dionaea_temp:/opt/dionaea/etc/dionaea/. /opt/dionaea/etc/dionaea/
+  changed_when: false
+
+- name: Enable log_json ihandler for Dionaea
+  ansible.builtin.copy:
+    src: /opt/dionaea/etc/dionaea/ihandlers-available/log_json.yaml
+    dest: /opt/dionaea/etc/dionaea/ihandlers-enabled/log_json.yaml
+    remote_src: yes # looks for the src file on the EC2 host (ansible node) instead of the local machine that ran ansible
+
+- name: Fix the broken file path in log_json.yaml
+  ansible.builtin.replace:
+    path: /opt/dionaea/etc/dionaea/ihandlers-enabled/log_json.yaml
+    regexp: 'var/lib/dionaea/dionaea\.json'
+    replace: '/opt/dionaea/var/log/dionaea/dionaea.json'
+
+- name: Remove temp Dionaea container
+  community.docker.docker_container:
+    name: dionaea_temp
+    state: absent
+
+- name: Configure and run docker image for Dionaea
+  community.docker.docker_container:
+    name: dionaea
+    image: dinotools/dionaea:latest
+    state: started
+    restart_policy: always
+    ports:
+      - "21:21"           # FTP (TCP)
+      - "80:80"           # HTTP (TCP)
+      - "443:443"         # HTTPS (TCP)
+      - "445:445"         # SMB (TCP)
+      - "3306:3306"       # MySQL (TCP)
+      - "5060:5060"       # SIP (TCP)
+      - "5060:5060/udp"   # SIP (UDP)
+    volumes:
+      - "/opt/dionaea/etc/dionaea:/opt/dionaea/etc/dionaea" # EC2 config to container config (dionaea.conf)
+      - "/opt/dionaea/var/lib/dionaea:/opt/dionaea/var/lib/dionaea" # Container data to EC2 folder (dionaea.sqlite)
+      - "/opt/dionaea/var/log/dionaea:/opt/dionaea/var/log/dionaea" # Container logs to EC2 folder (dionaea.json)
+
+- name: Create local file directory for log_shipper.py script
+  ansible.builtin.file:
+    path: /opt/scripts
+    state: directory
+    mode: '0755' # drwxr-xr-x
+
+- name: Copy log_shipper.py to file directory
+  ansible.builtin.copy:
+    src: log_shipper.py
+    dest: /opt/scripts/log_shipper.py
+    mode: '0755' # drwxr-xr-x
+
+- name: Copy script.service to file directory
+  ansible.builtin.template:
+    src: script.service.j2
+    dest: /etc/systemd/system/script.service
+    mode: '0644' # -rw-r--r--
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+- name: Enable and start log parser service
+  ansible.builtin.systemd_service:
+    name: script.service
+    enabled: true
+    state: started

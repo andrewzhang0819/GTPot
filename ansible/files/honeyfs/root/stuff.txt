@@ -1,0 +1,11 @@
+gmail:
+-username: burgerman123@gmail.com
+-password: burgerpass123!
+
+spotify:
+-username: ilikeburgers999
+-password: burgermuncher123!
+
+twitter:
+-username: maliciousburger777
+-password: ilikeburgers123

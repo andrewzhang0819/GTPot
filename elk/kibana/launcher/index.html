@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GTPot — Select View</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #050a0f;
+      --surface: #0b1520;
+      --border: #1a2e42;
+      --accent-exec: #f0a500;
+      --accent-analyst: #00d4ff;
+      --text: #c8dce8;
+      --muted: #4a6478;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 900px;
+      height: 500px;
+      background: radial-gradient(ellipse, rgba(0, 60, 90, 0.35) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      width: 100%;
+      max-width: 860px;
+      padding: 0 2rem;
+      animation: fadeUp 0.8s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      letter-spacing: 0.12em;
+      color: #fff;
+      margin-bottom: 0.2rem;
+    }
+
+    .logo span { color: var(--accent-analyst); }
+
+    .tagline {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.3em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 3.5rem;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 580px) { .cards { grid-template-columns: 1fr; } }
+
+    .card {
+      display: block;
+      text-decoration: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2.4rem 2rem 3rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.25s, transform 0.25s;
+      animation: fadeUp 0.8s ease both;
+    }
+
+    .card:nth-child(1) { animation-delay: 0.15s; }
+    .card:nth-child(2) { animation-delay: 0.28s; }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .card.exec::before   { background: linear-gradient(135deg, rgba(240,165,0,0.07) 0%, transparent 60%); }
+    .card.analyst::before { background: linear-gradient(135deg, rgba(0,212,255,0.07) 0%, transparent 60%); }
+
+    .card:hover { transform: translateY(-3px); }
+    .card.exec:hover    { border-color: var(--accent-exec); }
+    .card.analyst:hover  { border-color: var(--accent-analyst); }
+    .card:hover::before { opacity: 1; }
+
+    .card-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s ease;
+    }
+    .card.exec    .card-bar { background: var(--accent-exec); }
+    .card.analyst .card-bar { background: var(--accent-analyst); }
+    .card:hover .card-bar   { transform: scaleX(1); }
+
+    .card-icon  { font-size: 2.2rem; margin-bottom: 1.1rem; display: block; }
+
+    .card-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .card.exec    .card-label { color: var(--accent-exec); }
+    .card.analyst .card-label { color: var(--accent-analyst); }
+
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.9rem;
+      line-height: 1.1;
+    }
+
+    .card-desc {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.6;
+      font-weight: 400;
+    }
+
+    .card-arrow {
+      position: absolute;
+      bottom: 1.4rem;
+      right: 1.6rem;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      transition: color 0.2s, transform 0.2s;
+    }
+    .card.exec:hover    .card-arrow { color: var(--accent-exec);    transform: translateX(4px); }
+    .card.analyst:hover .card-arrow { color: var(--accent-analyst); transform: translateX(4px); }
+
+    .status {
+      margin-top: 2.4rem;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+    }
+
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { background: #2a6a2a; box-shadow: 0 0 0 0 rgba(0,200,80,0.4); }
+      50%       { background: #00c850; box-shadow: 0 0 0 5px rgba(0,200,80,0); }
+    }
+
+    .scanline {
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
+      pointer-events: none;
+      z-index: 2;
+    }
+  </style>
+</head>
+<body>
+  <div class="scanline"></div>
+  <div class="container">
+    <div class="logo">GT<span>Pot</span></div>
+    <div class="tagline">Cloud-Native Honeypot Intelligence Platform</div>
+
+    <div class="cards">
+      <a class="card exec"
+         href="http://localhost:5601/s/exec/app/dashboards#/view/bd5015ad-ec4f-4243-8467-38c5ff093861"
+         target="_blank">
+        <div class="card-bar"></div>
+        <span class="card-icon">📊</span>
+        <div class="card-label">View 01</div>
+        <div class="card-title">Executive<br>View</div>
+        <div class="card-desc">Threat score, vulnerability summary, recommended actions, and spatial/temporal overview for leadership.</div>
+        <span class="card-arrow">OPEN →</span>
+      </a>
+
+      <a class="card analyst"
+         href="http://localhost:5601/s/analyst/app/dashboards#/view/20be6af8-fa4d-4e97-bbfe-50143f47044d"
+         target="_blank">
+        <div class="card-bar"></div>
+        <span class="card-icon">🔬</span>
+        <div class="card-label">View 02</div>
+        <div class="card-title">Analyst<br>View</div>
+        <div class="card-desc">MITRE ATT&amp;CK mapping, behavioral clustering, attack progression, metrics table, and raw log data.</div>
+        <span class="card-arrow">OPEN →</span>
+      </a>
+    </div>
+
+    <div class="status">
+      <span class="dot"></span>
+      ELK STACK RUNNING · KIBANA :5601 · ELASTICSEARCH :9200
+    </div>
+  </div>
+</body>
+</html>

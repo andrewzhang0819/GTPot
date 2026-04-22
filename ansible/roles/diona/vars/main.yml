@@ -1,0 +1,2 @@
+honeypot_log_path: "/opt/dionaea/var/log/dionaea/dionaea.json"
+honeypot_type: "dionaea"

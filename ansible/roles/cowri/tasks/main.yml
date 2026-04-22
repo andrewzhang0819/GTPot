@@ -1,0 +1,171 @@
+- name: Update and upgrade apt packages
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - python3-boto3
+      - python3-docker
+    state: present # install if not exists
+    update_cache: true
+
+- name: Start and enable docker
+  ansible.builtin.service:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Create local file directory for log parsing
+  ansible.builtin.file:
+    path: /var/log/cowrie
+    state: directory # create all intermediate subdirectories if they do not already exist
+    owner: '999'
+    group: '999'
+    mode: '0755' # drwxr-xr-x
+
+- name: Pull docker image for Cowrie
+  community.docker.docker_image:
+    name: cowrie/cowrie
+    source: pull
+
+- name: Create local file directory for Cowrie configs
+  ansible.builtin.file:
+    path: /opt/configs
+    state: directory
+    owner: '999'
+    group: '999'
+    mode: '0755'
+
+- name: Copy cowrie.cfg to EC2
+  ansible.builtin.copy:
+    src: cowrie.cfg
+    dest: /opt/configs/cowrie.cfg
+    owner: '999'
+    group: '999'
+    mode: '0644'
+
+- name: Copy userdb.txt to EC2 to change default password
+  ansible.builtin.copy:
+    src: userdb.txt
+    dest: /opt/configs/userdb.txt
+    owner: '999'
+    group: '999'
+    mode: '0644'
+
+- name: Copy fake filesystem to EC2
+  ansible.builtin.copy:
+    src: honeyfs/
+    dest: /opt/configs/honeyfs/
+    owner: '999'
+    group: '999'
+    mode: '0644'
+    directory_mode: '0755'
+
+- name: Configure and run docker image for Cowrie
+  community.docker.docker_container:
+    name: cowrie
+    image: cowrie/cowrie:latest
+    state: started
+    restart_policy: always # if the docker container ever goes offline, restart
+    ports:
+      - "22:2222" # ssh
+      - "23:2223" # telnet
+    volumes:
+      - "/var/log/cowrie:/cowrie/cowrie-git/var/log/cowrie" # map logs from docker to ec2
+      - "/opt/configs/userdb.txt:/cowrie/cowrie-git/etc/userdb.txt" # maps ec2 password config to docker
+      - "/opt/configs/honeyfs:/cowrie/cowrie-git/honeyfs" # maps ec2 fake filesystem config to docker
+      - "/opt/configs/cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg" # maps ec2 cowrie.cfg to docker
+
+- name: Wait for Cowrie application to fully boot
+  ansible.builtin.pause:
+    seconds: 10
+
+- name: Find all directories in honeyfs
+  ansible.builtin.find:
+    paths: /opt/configs/honeyfs
+    recurse: true
+    file_type: directory
+  register: honeyfs_dirs
+
+- name: Find all files in honeyfs
+  ansible.builtin.find:
+    paths: /opt/configs/honeyfs
+    recurse: true
+    file_type: file
+  register: honeyfs_files
+
+- name: Build fsctl command input from honeyfs contents
+  ansible.builtin.set_fact:
+    fsctl_input: |
+      {% for dir in honeyfs_dirs.files | sort(attribute='path') %}
+      mkdir {{ dir.path | replace('/opt/configs/honeyfs', '') }}
+      chown 0 {{ dir.path | replace('/opt/configs/honeyfs', '') }}
+      chgrp 0 {{ dir.path | replace('/opt/configs/honeyfs', '') }}
+      {% endfor %}
+      {% for file in honeyfs_files.files %}
+      touch {{ file.path | replace('/opt/configs/honeyfs', '') }} {{ file.size }}
+      chown 0 {{ file.path | replace('/opt/configs/honeyfs', '') }}
+      chgrp 0 {{ file.path | replace('/opt/configs/honeyfs', '') }}
+      {% endfor %}
+      exit
+
+- name: Run fsctl to register all honeyfs files into fs.pickle
+  ansible.builtin.command:
+    cmd: >
+      docker exec -i cowrie /cowrie/cowrie-env/bin/python3 -m cowrie.scripts.fsctl /cowrie/cowrie-git/src/cowrie/data/fs.pickle
+  args:
+    stdin: "{{ fsctl_input }}"
+
+- name: Copy modified fs.pickle from container to host
+  ansible.builtin.command:
+    cmd: docker cp cowrie:/cowrie/cowrie-git/src/cowrie/data/fs.pickle /opt/configs/fs.pickle
+
+- name: Ensure ownership of extracted fs.pickle is able to be mounted to be a volume
+  ansible.builtin.file:
+    path: /opt/configs/fs.pickle
+    owner: '999'
+    group: '999'
+    mode: '0644'
+
+- name: Recreate Cowrie container with fs.pickle volume mount
+  community.docker.docker_container:
+    name: cowrie
+    image: cowrie/cowrie:latest
+    state: started
+    restart_policy: always
+    recreate: true
+    ports:
+      - "22:2222"
+      - "23:2223"
+    volumes:
+      - "/var/log/cowrie:/cowrie/cowrie-git/var/log/cowrie" # maps logs from docker to EC2
+      - "/opt/configs/honeyfs:/cowrie/cowrie-git/honeyfs" # maps fake filesystem config to docker
+      - "/opt/configs/fs.pickle:/cowrie/cowrie-git/src/cowrie/data/fs.pickle" # PICKLE!??!?!
+      - "/opt/configs/userdb.txt:/cowrie/cowrie-git/etc/userdb.txt" # maps ec2 password config to docker
+      - "/opt/configs/cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg" # maps cowrie.cfg to docker
+
+- name: Create local file directory for log_shipper.py script
+  ansible.builtin.file:
+    path: /opt/scripts
+    state: directory
+    mode: '0755' # drwxr-xr-x
+
+- name: Copy log_shippers.py to file directory
+  ansible.builtin.copy:
+    src: log_shipper.py
+    dest: /opt/scripts/log_shipper.py
+    mode: '0755' # drwxr-xr-x
+
+- name: Copy script.service to file directory
+  ansible.builtin.template:
+    src: script.service.j2
+    dest: /etc/systemd/system/script.service
+    mode: '0644' # -rw-r--r--
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+- name: Enable and start Cowrie parser service
+  ansible.builtin.systemd_service:
+    name: script.service
+    enabled: true
+    state: started

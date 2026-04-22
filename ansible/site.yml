@@ -1,0 +1,11 @@
+- name: Download dependencies, Cowrie, log_shipper.py, and deploy
+  hosts: Cowrie
+  become: true
+  roles:
+    - cowri
+
+- name: Download dependecies, Dionaea, log_shipper.py, and deploy
+  hosts: Dionaea
+  become: true
+  roles:
+    - diona

@@ -1,0 +1,73 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.4
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data  # ADD THIS
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.2.4
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_DEFAULTROUTE=/app/dashboards#/view/landing-page
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    volumes:
+      - kibana_data:/usr/share/kibana/data
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:9.2.4-amd64
+    container_name: logstash
+    command: sh -c "sleep 30 && /usr/share/logstash/bin/logstash"
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./sample:/data
+      - ${HOME}/.aws:/root/.aws:ro
+    environment:
+      - LS_JAVA_OPTS=-Xms512m -Xmx512m
+    env_file:
+      - variables.env
+    depends_on:
+      - elasticsearch
+
+  launcher:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./kibana/launcher:/usr/share/nginx/html:ro
+    depends_on:
+      - kibana
+
+  setup_kibana:
+    image: docker.elastic.co/kibana/kibana:9.2.4
+    depends_on:
+      - kibana
+      - elasticsearch
+    volumes:
+      - ./kibana:/kibana
+      - ./scripts:/scripts
+    entrypoint: ["/bin/sh", "/scripts/setup_kibana.sh"]
+    environment:
+      - KIBANA_URL=http://kibana:5601
+      - PUBLIC_BASE_URL=http://localhost:5601
+      - DATA_VIEW_PATTERN=honeypot-*
+      - TIME_FIELD=@timestamp
+      - DASHBOARD_TITLE_SEARCH_EXEC=Honeypot Overview
+      - DASHBOARD_TITLE_SEARCH_ANALYST=Honeypot Analyst View
+
+volumes:          # ADD THIS BLOCK at the bottom
+  esdata:
+    driver: local
+  kibana_data:
+    driver: local

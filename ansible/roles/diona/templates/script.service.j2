@@ -1,0 +1,14 @@
+[Unit]
+Description=systemdforpythonscript
+
+[Service]
+Type=simple
+Environment="SQS_URL={{ sqs_url }}"
+Environment="HONEYPOT_LOG_PATH={{ honeypot_log_path }}"
+Environment="HONEYPOT_TYPE={{ honeypot_type }}"
+ExecStart=/usr/bin/python3 /opt/scripts/log_shipper.py
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
