@@ -134,16 +134,14 @@ ansible-galaxy collection install community.docker
 # Deploy Ansible: download dependencies, download Cowrie, start Cowrie, download Python script, start Python script
 ansible-playbook -i ansible/inventory.ini ansible/site.yml --private-key "$HOME/.ssh/id_rsa" --extra-vars "sqs_url=$SQS_URL"
 
-
-# -------------------------------------------------------
-# NEW: Start local ELK stack automatically after Ansible
-# deploys the honeypot. Logstash will pick up variables.env
-# and immediately start listening to the SQS queue.
-# -------------------------------------------------------
+# Start ELK stack
 echo "Starting local ELK stack..."
 cd elk && docker compose up -d
 cd ..
 echo "Waiting for ELK stack to be ready..."
 sleep 180
-echo "Opening GTPot dashboard launcher..."
-cecho "Deployment complete. Access your Kibana dashboard at: http://localhost:8080"
+# echo "Opening GTPot dashboard launcher..."
+# cmd.exe /c start http://localhost:8080
+
+# Output Kibana link
+echo "Deployment complete. Access your Kibana dashboard at: http://localhost:8080"

@@ -1,253 +1,448 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GTPot — Select View</title>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CloudPot — Operations Console</title>
+<meta name="description" content="CloudPot operations console — a calm, focused view into honeypot telemetry." />
+<style>
+  :root {
+    --bg: #0b0b0f;
+    --surface: #121218;
+    --surface-2: #16161d;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #f5f5f7;
+    --text-dim: #a1a1aa;
+    --text-mute: #6b6b76;
+    --gold: #d4b572;
+    --cyan: #7dd3fc;
+    --green: #34d399;
+    --ease: cubic-bezier(.2,.8,.2,1);
+  }
 
-    :root {
-      --bg: #050a0f;
-      --surface: #0b1520;
-      --border: #1a2e42;
-      --accent-exec: #f0a500;
-      --accent-analyst: #00d4ff;
-      --text: #c8dce8;
-      --muted: #4a6478;
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  /* Soft radial spotlight */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(212,181,114,0.10), transparent 60%),
+      radial-gradient(ellipse 60% 50% at 50% 110%, rgba(125,211,252,0.06), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .mono {
+    font-family: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    font-feature-settings: "zero", "ss02";
+  }
+
+  /* ---------- Nav ---------- */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    background: rgba(11,11,15,0.72);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark { width: 22px; height: 22px; }
+  .brand-name {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-dim);
+    font-size: 12px;
+    letter-spacing: 0.01em;
+  }
+  .pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gold);
+  }
+
+  /* ---------- Layout ---------- */
+  main { position: relative; z-index: 1; }
+  .container {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    text-align: center;
+    padding: 120px 28px 80px;
+  }
+  .eyebrow {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+  .headline {
+    font-size: clamp(36px, 8vw, 84px);
+    line-height: 1.04;
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    margin: 0 auto 24px;
+    max-width: 900px;
+    background: linear-gradient(180deg, #ffffff 0%, #c8c8d0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .subhead {
+    font-size: clamp(17px, 1.6vw, 21px);
+    color: var(--text-dim);
+    max-width: 620px;
+    margin: 0 auto 40px;
+    line-height: 1.5;
+  }
+  .cta-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 46px;
+    padding: 0 22px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 400ms var(--ease);
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn-primary {
+    background: #fafafa;
+    color: #0b0b0f;
+  }
+  .btn-primary:hover {
+    background: #ffffff;
+    transform: translateY(-1px);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .btn-ghost:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.22);
+  }
+  .btn .arrow { transition: transform 400ms var(--ease); }
+  .btn:hover .arrow { transform: translateX(3px); }
+
+  /* ---------- Cards ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    padding: 40px 0 100px;
+  }
+  @media (max-width: 760px) {
+    .cards { grid-template-columns: 1fr; }
+    .hero { padding-top: 80px; }
+  }
+  .card {
+    position: relative;
+    border-radius: 24px;
+    padding: 36px 32px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+      var(--surface);
+    border: 1px solid var(--border);
+    transition: all 500ms var(--ease);
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    min-height: 360px;
+    overflow: hidden;
+  }
+  .card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 500ms var(--ease);
+    background: radial-gradient(ellipse 100% 60% at 50% 0%, rgba(255,255,255,0.06), transparent 70%);
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-strong);
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6);
+  }
+  .card:hover::after { opacity: 1; }
+
+  .card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+  }
+  .card-icon.gold { color: var(--gold); }
+  .card-icon.cyan { color: var(--cyan); }
+
+  .card-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    margin-bottom: 8px;
+  }
+  .card-title {
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 10px;
+  }
+  .card-desc {
+    color: var(--text-dim);
+    font-size: 15px;
+    margin: 0 0 20px;
+    line-height: 1.55;
+  }
+  .features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .features li {
+    font-size: 14px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .features li::before {
+    content: "";
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-mute);
+    flex-shrink: 0;
+  }
+  .card-link {
+    margin-top: auto;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .card-link .arrow { transition: transform 400ms var(--ease); }
+  .card:hover .card-link .arrow { transform: translateX(4px); }
+
+  /* ---------- Status strip ---------- */
+  .status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 24px 0 40px;
+    color: var(--text-mute);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 0 rgba(52,211,153,0.6);
+    animation: pulse 2.4s var(--ease) infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(52,211,153,0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(52,211,153,0); }
+    100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
+  }
+  .status-sep { color: rgba(255,255,255,0.15); }
+
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 28px 0 40px;
+    margin-top: 20px;
+  }
+  .footer-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .footer-links {
+    display: flex;
+    gap: 24px;
+  }
+  .footer-links a {
+    color: var(--text-mute);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 300ms var(--ease);
+  }
+  .footer-links a:hover { color: var(--text); }
+  .copyright {
+    color: var(--text-mute);
+    font-size: 12px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
     }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Syne', sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      position: relative;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(0, 212, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 212, 255, 0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    body::after {
-      content: '';
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 900px;
-      height: 500px;
-      background: radial-gradient(ellipse, rgba(0, 60, 90, 0.35) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .container {
-      position: relative;
-      z-index: 1;
-      text-align: center;
-      width: 100%;
-      max-width: 860px;
-      padding: 0 2rem;
-      animation: fadeUp 0.8s ease both;
-    }
-
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(24px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .logo {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: clamp(2.4rem, 6vw, 4rem);
-      letter-spacing: 0.12em;
-      color: #fff;
-      margin-bottom: 0.2rem;
-    }
-
-    .logo span { color: var(--accent-analyst); }
-
-    .tagline {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 0.72rem;
-      letter-spacing: 0.3em;
-      color: var(--muted);
-      text-transform: uppercase;
-      margin-bottom: 3.5rem;
-    }
-
-    .cards {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-    }
-
-    @media (max-width: 580px) { .cards { grid-template-columns: 1fr; } }
-
-    .card {
-      display: block;
-      text-decoration: none;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2.4rem 2rem 3rem;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.25s, transform 0.25s;
-      animation: fadeUp 0.8s ease both;
-    }
-
-    .card:nth-child(1) { animation-delay: 0.15s; }
-    .card:nth-child(2) { animation-delay: 0.28s; }
-
-    .card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-
-    .card.exec::before   { background: linear-gradient(135deg, rgba(240,165,0,0.07) 0%, transparent 60%); }
-    .card.analyst::before { background: linear-gradient(135deg, rgba(0,212,255,0.07) 0%, transparent 60%); }
-
-    .card:hover { transform: translateY(-3px); }
-    .card.exec:hover    { border-color: var(--accent-exec); }
-    .card.analyst:hover  { border-color: var(--accent-analyst); }
-    .card:hover::before { opacity: 1; }
-
-    .card-bar {
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform 0.3s ease;
-    }
-    .card.exec    .card-bar { background: var(--accent-exec); }
-    .card.analyst .card-bar { background: var(--accent-analyst); }
-    .card:hover .card-bar   { transform: scaleX(1); }
-
-    .card-icon  { font-size: 2.2rem; margin-bottom: 1.1rem; display: block; }
-
-    .card-label {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 0.65rem;
-      letter-spacing: 0.35em;
-      text-transform: uppercase;
-      margin-bottom: 0.5rem;
-    }
-    .card.exec    .card-label { color: var(--accent-exec); }
-    .card.analyst .card-label { color: var(--accent-analyst); }
-
-    .card-title {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #fff;
-      margin-bottom: 0.9rem;
-      line-height: 1.1;
-    }
-
-    .card-desc {
-      font-size: 0.82rem;
-      color: var(--muted);
-      line-height: 1.6;
-      font-weight: 400;
-    }
-
-    .card-arrow {
-      position: absolute;
-      bottom: 1.4rem;
-      right: 1.6rem;
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 0.75rem;
-      color: var(--muted);
-      transition: color 0.2s, transform 0.2s;
-    }
-    .card.exec:hover    .card-arrow { color: var(--accent-exec);    transform: translateX(4px); }
-    .card.analyst:hover .card-arrow { color: var(--accent-analyst); transform: translateX(4px); }
-
-    .status {
-      margin-top: 2.4rem;
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 0.65rem;
-      letter-spacing: 0.2em;
-      color: var(--muted);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.6rem;
-    }
-
-    .dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      display: inline-block;
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { background: #2a6a2a; box-shadow: 0 0 0 0 rgba(0,200,80,0.4); }
-      50%       { background: #00c850; box-shadow: 0 0 0 5px rgba(0,200,80,0); }
-    }
-
-    .scanline {
-      position: fixed;
-      inset: 0;
-      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
-      pointer-events: none;
-      z-index: 2;
-    }
-  </style>
+  }
+</style>
 </head>
 <body>
-  <div class="scanline"></div>
-  <div class="container">
-    <div class="logo">GT<span>Pot</span></div>
-    <div class="tagline">Cloud-Native Honeypot Intelligence Platform</div>
 
-    <div class="cards">
-      <a class="card exec"
-         href="http://localhost:5601/s/exec/app/dashboards#/view/bd5015ad-ec4f-4243-8467-38c5ff093861"
-         target="_blank">
-        <div class="card-bar"></div>
-        <span class="card-icon">📊</span>
-        <div class="card-label">View 01</div>
-        <div class="card-title">Executive<br>View</div>
-        <div class="card-desc">Threat score, vulnerability summary, recommended actions, and spatial/temporal overview for leadership.</div>
-        <span class="card-arrow">OPEN →</span>
-      </a>
-
-      <a class="card analyst"
-         href="http://localhost:5601/s/analyst/app/dashboards#/view/20be6af8-fa4d-4e97-bbfe-50143f47044d"
-         target="_blank">
-        <div class="card-bar"></div>
-        <span class="card-icon">🔬</span>
-        <div class="card-label">View 02</div>
-        <div class="card-title">Analyst<br>View</div>
-        <div class="card-desc">MITRE ATT&amp;CK mapping, behavioral clustering, attack progression, metrics table, and raw log data.</div>
-        <span class="card-arrow">OPEN →</span>
-      </a>
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4 14a8 8 0 0116 0v3H4v-3z" stroke="#d4b572" stroke-width="1.5"/>
+        <path d="M7 17v2M12 17v2M17 17v2" stroke="#d4b572" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="12" cy="11" r="1.2" fill="#d4b572"/>
+      </svg>
+      <span class="brand-name">CloudPot</span>
     </div>
-
-    <div class="status">
-      <span class="dot"></span>
-      ELK STACK RUNNING · KIBANA :5601 · ELASTICSEARCH :9200
-    </div>
+    <span class="pill"><span class="dot"></span>Capstone Project</span>
   </div>
+</nav>
+
+<main>
+  <section class="hero container">
+    <span class="eyebrow">Operations Console</span>
+    <h1 class="headline">Threat intelligence,<br/>beautifully clear.</h1>
+    <p class="subhead">A focused view into honeypot telemetry — designed for the people who need to act, and the people who need to understand.</p>
+    <div class="cta-row">
+      <a href="http://localhost:5601/s/exec/app/dashboards#/view/bd5015ad-ec4f-4243-8467-38c5ff093861" target="_blank" class="btn btn-primary">Open Executive <span class="arrow">→</span></a>
+      <a href="http://localhost:5601/s/analyst/app/dashboards#/view/20be6af8-fa4d-4e97-bbfe-50143f47044d" target="_blank" class="btn btn-ghost">Open Analyst <span class="arrow">→</span></a>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="cards">
+      <a href="http://localhost:5601/s/exec/app/dashboards#/view/bd5015ad-ec4f-4243-8467-38c5ff093861" target="_blank" class="card">
+        <div class="card-icon gold">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 3v18h18"/>
+            <path d="M7 14l4-4 4 4 5-6"/>
+          </svg>
+        </div>
+        <div class="card-eyebrow">For Leadership</div>
+        <h2 class="card-title">Executive</h2>
+        <p class="card-desc">A calm overview of activity, trends, and posture — at a glance.</p>
+        <ul class="features">
+          <li>Activity at a glance</li>
+          <li>Trend over time</li>
+          <li>Exportable summaries</li>
+        </ul>
+        <span class="card-link">Open dashboard <span class="arrow">→</span></span>
+      </a>
+
+      <a href="http://localhost:5601/s/analyst/app/dashboards#/view/20be6af8-fa4d-4e97-bbfe-50143f47044d" target="_blank" class="card">
+        <div class="card-icon cyan">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="M21 21l-4.3-4.3"/>
+          </svg>
+        </div>
+        <div class="card-eyebrow">For Practitioners</div>
+        <h2 class="card-title">Analyst</h2>
+        <p class="card-desc">Drill into the live event stream, pivot fast, and save investigations for later.</p>
+        <ul class="features">
+          <li>Live event stream</li>
+          <li>Saved investigations</li>
+          <li>Search across sources</li>
+        </ul>
+        <span class="card-link">Open dashboard <span class="arrow">→</span></span>
+      </a>
+    </div>
+
+    <div class="status mono">
+      <span class="status-dot"></span>
+      <span>Cluster · operational</span>
+      <span class="status-sep">·</span>
+      <span id="sync">last sync just now</span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <span class="copyright">© CloudPot · Capstone Project</span>
+  </div>
+</footer>
+
+<script>
+  (function() {
+    const el = document.getElementById('sync');
+    if (!el) return;
+    const t = new Date();
+    const hh = String(t.getHours()).padStart(2,'0');
+    const mm = String(t.getMinutes()).padStart(2,'0');
+    el.textContent = 'last sync ' + hh + ':' + mm;
+  })();
+</script>
+
 </body>
 </html>
